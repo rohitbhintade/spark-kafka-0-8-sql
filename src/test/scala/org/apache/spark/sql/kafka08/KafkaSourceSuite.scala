@@ -23,13 +23,14 @@ import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.streaming.StreamTest
 import org.apache.spark.sql.test.SharedSQLContext
 import org.apache.spark.streaming.kafka.KafkaCluster.LeaderOffset
+import org.scalatest.time.Span
 import org.scalatest.time.SpanSugar._
 
 abstract class KafkaSourceTest extends StreamTest with SharedSQLContext {
 
   protected var testUtils: KafkaTestUtils = _
 
-  override val streamingTimeout = 30.seconds
+  override val streamingTimeout: Span = 30.seconds
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -67,8 +68,8 @@ abstract class KafkaSourceTest extends StreamTest with SharedSQLContext {
       }
 
       val sources = query.get.logicalPlan.collect {
-        case StreamingExecutionRelation(source, _) if source.isInstanceOf[KafkaSource] =>
-          source.asInstanceOf[KafkaSource]
+        case StreamingExecutionRelation(source, _) if source.isInstanceOf[KafkaStreamingSource] =>
+          source.asInstanceOf[KafkaStreamingSource]
       }
       if (sources.isEmpty) {
         throw new Exception(
@@ -102,7 +103,7 @@ class KafkaSourceSuite extends KafkaSourceTest {
     import implicits._
     val reader = spark
       .readStream
-      .format("kafka")
+      .format("kafka08")
       .option("kafka.bootstrap.servers", testUtils.brokerAddress)
       .option("startingoffset", "smallest")
       .option("topics", topic)
@@ -124,7 +125,7 @@ class KafkaSourceSuite extends KafkaSourceTest {
       val ex = intercept[IllegalArgumentException] {
         val reader = spark
           .readStream
-          .format("kafka")
+          .format("kafka08")
         options.foreach { case (k, v) => reader.option(k, v) }
         reader.load()
       }
@@ -143,7 +144,7 @@ class KafkaSourceSuite extends KafkaSourceTest {
       val ex = intercept[IllegalArgumentException] {
         val reader = spark
           .readStream
-          .format("kafka")
+          .format("kafka08")
           .option(s"$key", value)
         reader.load()
       }

@@ -20,24 +20,24 @@ package org.apache.spark.sql.kafka08
 import kafka.common.TopicAndPartition
 import org.apache.spark.sql.execution.streaming.{Offset, SerializedOffset}
 import org.apache.spark.streaming.kafka.KafkaCluster.LeaderOffset
-import org.json4s.NoTypeHints
+import org.json4s.{Formats, NoTypeHints}
 import org.json4s.jackson.Serialization
 
 import scala.collection.mutable.HashMap
 import scala.util.control.NonFatal
 
 /**
- * An [[Offset]] for the [[KafkaSource]]. This one tracks all partitions of subscribed topics and
+ * An [[Offset]] for the [[KafkaStreamingSource]]. This one tracks all partitions of subscribed topics and
  * their offsets.
  */
 case class KafkaSourceOffset(partitionToOffsets: Map[TopicAndPartition, LeaderOffset])
   extends Offset {
 
-  private implicit val formats = Serialization.formats(NoTypeHints)
+  private implicit val formats: AnyRef with Formats = Serialization.formats(NoTypeHints)
 
   override def json(): String = {
     val result = new HashMap[String, HashMap[Int, (String, Int, Long)]]()
-    implicit val ordering = new Ordering[TopicAndPartition] {
+    implicit val ordering: Ordering[TopicAndPartition] = new Ordering[TopicAndPartition] {
       override def compare(x: TopicAndPartition, y: TopicAndPartition): Int = {
         Ordering.Tuple2[String, Int].compare((x.topic, x.partition), (y.topic, y.partition))
       }
@@ -56,11 +56,12 @@ case class KafkaSourceOffset(partitionToOffsets: Map[TopicAndPartition, LeaderOf
 /** Companion object of the [[KafkaSourceOffset]] */
 object KafkaSourceOffset {
 
-  private implicit val formats = Serialization.formats(NoTypeHints)
+  private implicit val formats: AnyRef with Formats = Serialization.formats(NoTypeHints)
 
   def getPartitionOffsets(offset: Offset): Map[TopicAndPartition, LeaderOffset] = {
     offset match {
       case o: KafkaSourceOffset => o.partitionToOffsets
+      case so : SerializedOffset => apply(so).partitionToOffsets
       case _ =>
         throw new IllegalArgumentException(
           s"Invalid conversion from offset of ${offset.getClass} to KafkaSourceOffset")
@@ -74,7 +75,7 @@ object KafkaSourceOffset {
         partOffsets.map { case (part, off) =>
           TopicAndPartition(topic, part) -> LeaderOffset(off._1, off._2, off._3)
         }
-      }.toMap
+      }
     } catch {
       case NonFatal(x) =>
         throw new IllegalArgumentException(

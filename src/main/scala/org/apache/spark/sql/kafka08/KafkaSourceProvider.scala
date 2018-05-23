@@ -23,23 +23,23 @@ import scala.collection.JavaConverters._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.execution.streaming.Source
-import org.apache.spark.sql.sources.{DataSourceRegister, StreamSourceProvider}
+import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.kafka08.util.Logging
 
 /**
- * The provider class for the [[KafkaSource]]. This provider is designed such that it throws
+ * The provider class for the [[KafkaStreamingSource]]. This provider is designed such that it throws
  * IllegalArgumentException when the Kafka Dataset is created, so that it can catch
  * missing options even before the query is started.
  */
 private[kafka08] class KafkaSourceProvider extends StreamSourceProvider
-  with DataSourceRegister with Logging {
+  with DataSourceRegister with RelationProvider with SchemaRelationProvider with Logging {
 
   import KafkaSourceProvider._
 
   /**
    * Returns the name and schema of the source. In addition, it also verifies whether the options
-   * are correct and sufficient to create the [[KafkaSource]] when the query is started.
+   * are correct and sufficient to create the [[KafkaStreamingSource]] when the query is started.
    */
   override def sourceSchema(
       sqlContext: SQLContext,
@@ -48,7 +48,7 @@ private[kafka08] class KafkaSourceProvider extends StreamSourceProvider
       parameters: Map[String, String]): (String, StructType) = {
     require(schema.isEmpty, "Kafka source has a fixed schema and cannot be set with a custom one")
     validateOptions(parameters)
-    ("kafka", KafkaSource.kafkaSchema)
+    ("kafka08", KafkaStreamingSource.kafkaSchema)
   }
 
   override def createSource(
@@ -90,12 +90,12 @@ private[kafka08] class KafkaSourceProvider extends StreamSourceProvider
 
         // So that consumers does not commit offsets unnecessarily
         .set("auto.commit.enable", "false")
-        .setIfUnset(ConsumerConfig.SOCKET_RECEIVE_BUFFER_CONFIG, "65536")
+        //.setIfUnset(ConsumerConfig.SOCKET_RECEIVE_BUFFER_CONFIG, "65536")
         .set(ConsumerConfig.GROUP_ID_CONFIG, "")
         .set("zookeeper.connect", "")
         .build()
 
-    new KafkaSource(
+    new KafkaStreamingSource(
       sqlContext,
       topics,
       kafkaParams.asScala.toMap,
@@ -172,7 +172,7 @@ private[kafka08] class KafkaSourceProvider extends StreamSourceProvider
     }
   }
 
-  override def shortName(): String = "kafka"
+  override def shortName(): String = "kafka08"
 
   /** Class to conveniently update Kafka config params, while logging the changes */
   private case class ConfigUpdater(module: String, kafkaParams: Map[String, String]) {
@@ -193,6 +193,19 @@ private[kafka08] class KafkaSourceProvider extends StreamSourceProvider
     }
 
     def build(): ju.Map[String, String] = map
+  }
+
+  override def createRelation(sqlContext: SQLContext, parameters: Map[String, String]): BaseRelation = {
+    createRelation(sqlContext, parameters, null)
+  }
+
+  override def createRelation(sqlContext: SQLContext, parameters: Map[String, String],
+                              userSchema: StructType): BaseRelation = {
+    parameters.getOrElse("kafka.bootstrap.servers", sys.error("'bootstrap.servers' must be specified."))
+    parameters.getOrElse("startingoffset", sys.error("'startingoffset' must be specified."))
+    parameters.getOrElse("topics", sys.error("'topics' must be specified."))
+
+    new KafkaBatchSource(parameters,userSchema)(sqlContext)
   }
 }
 
