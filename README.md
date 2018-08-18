@@ -2,29 +2,7 @@
 
 Spark Structured Streaming Kafka Source for Kafka 0.8.
 
-This library is design for Spark Structured Streaming Kafka source, its aim is to provide equal functionalities for users who still use Kafka 0.8/0.9.
-
-The main differences compared to Kafka 0.10 source are:
-
-1. This Kafka 0.8 source uses `SimpleConsumer` rather than new `Consumer` API.
-2. Some configurations (especially the name) are changed in Kafka 0.10, and here we still keep the conventions of Kafka 0.8.
-3. We don't rewrite the whole Kafka connection logics compared to Kafka 0.10 source, instead we still use the existing implementations of Spark Streaming Kafka 0.8 direct approach.
-
-## To Use It
-
-Like other Sources in Spark ecosystem, the simplest way to use is to add the dependencies to Spark by:
-
-```
-spark-submit
-  --master local[*] \
-  --packages org.apache.spark:spark-kafka-0-8-sql_2.11:1.0 \
-  yourApp
-  ...
-```
-
-Spark will automatically search central and local maven repositories to add dependencies to Spark runtime. Besides you coud use `mvn install` to publish this library to local Maven repo and use `--packages`, which will search local maven repo also.
-
-To use `KafkaSource`, it is the same as any other Structured Streaming Sources already supported in Spark:
+This library is design for Spark Structured Streaming Kafka source, its aim is to provide equal functionalities for users who still want to use Kafka 0.8/0.9.
 
 ```scala
 
@@ -32,7 +10,7 @@ To use `KafkaSource`, it is the same as any other Structured Streaming Sources a
 
     val reader = spark
       .readStream
-      .format("kafka")
+      .format("kafka08")
       .option("kafka.bootstrap.servers", testUtils.brokerAddress)
       .option("startingoffset", "smallest")
       .option("topics", topic)
@@ -58,7 +36,7 @@ mvn clean package
 
 ### Compactible Spark Version
 
-Due to the rigid changes of Structured Streaming component, This Kafka 0.8 Source can only worked with Spark after 2.0.2 and master branch.
+Due to the rigid changes of Structured Streaming component, This Kafka 0.8 Source can only worked with Spark after 2.0.2 and 2.2.0 and master branch.
 
 ### Important notes:
 
@@ -78,6 +56,8 @@ Due to the rigid changes of Structured Streaming component, This Kafka 0.8 Sourc
 3. You have to specify "topics" in Kafka 0.8 Source options, multiple topics are separated by ",".
 4. All the Kafka related configurations set through Kafka 0.8 Source should be start with "kafka." prefix.
 5. Option "startingoffset" can only be "smallest" or "largest".
+6. Limit the number of messages by using spark.streaming.kafka.maxRatePerPartition 
+7. Also supports batch mode, spark.read.format("kaka08")
 
 # License
 
