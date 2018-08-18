@@ -4,6 +4,8 @@ Spark Structured Streaming Kafka Source for Kafka 0.8.
 
 This library is design for Spark Structured Streaming Kafka source, its aim is to provide equal functionalities for users who still want to use Kafka 0.8/0.9.
 
+### How to use
+
 ```scala
 
     import spark.implicits
